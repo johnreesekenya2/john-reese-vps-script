@@ -338,6 +338,245 @@ list_users() {
     show_creator_credits
 }
 
+# Create SSH account with full details
+create_ssh_account() {
+    local username="$1"
+    local password="$2"
+    local expiry_date="$3"
+    local uuid=$(generate_uuid)
+    
+    # Get domain from config  
+    local domain="your-domain.com"
+    if [[ -f "$DATA_DIR/domain.conf" ]]; then
+        domain=$(grep "^DOMAIN=" "$DATA_DIR/domain.conf" | cut -d'=' -f2)
+        [[ -z "$domain" ]] && domain="your-domain.com"
+    fi
+    
+    # Get server IP
+    local server_ip=$(ip route get 8.8.8.8 2>/dev/null | awk 'NR==1{print $7}' || echo "0.0.0.0")
+    
+    # Create system user
+    useradd -m -s /bin/bash "$username" 2>/dev/null || true
+    echo "$username:$password" | chpasswd
+    
+    # Store user data
+    echo "$username:$expiry_date:active:ssh,websocket,ssl:$uuid" >> "$USERS_DB"
+    
+    # Display SSH account details
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}${WHITE}            SSH Account${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}Username : ${YELLOW}$username${NC}"
+    echo -e "${WHITE}Password : ${YELLOW}$password${NC}"
+    echo -e "${WHITE}Expired On : ${YELLOW}$expiry_date${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}IP Address : ${YELLOW}$server_ip${NC}"
+    echo -e "${WHITE}Host : ${YELLOW}$domain${NC}"
+    echo -e "${WHITE}OpenSSH : ${YELLOW}22${NC}"
+    echo -e "${WHITE}Dropbear : ${YELLOW}109, 143${NC}"
+    echo -e "${WHITE}SSH-WS : ${YELLOW}80${NC}"
+    echo -e "${WHITE}SSH-SSL-WS : ${YELLOW}443${NC}"
+    echo -e "${WHITE}SSL/TLS : ${YELLOW}447, 777${NC}"
+    echo -e "${WHITE}UDPGW : ${YELLOW}7100-7300${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}Link SSH Config : ${CYAN}http://$domain:81/ssh-$username.txt${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}Payload WS${NC}"
+    echo -e "${GRAY}GET / [protocol][crlf]Host: [host][crlf]Connection: Keep-Alive[crlf]Connection: Upgrade[crlf]Upgrade: websocket[crlf][crlf]${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GRAY}GET wss://bug.com/ [protocol][crlf]Host: [host][crlf]Connection: Keep-Alive[crlf]Connection: Upgrade[crlf]Upgrade: websocket[crlf][crlf]${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GRAY}GET / [protocol][crlf]Host: $domain[crlf]Connection: Keep-Alive[crlf]Connection: Upgrade[crlf]Upgrade: websocket[crlf][crlf]${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GRAY}GET wss://bug.com/ [protocol][crlf]Host: $domain[crlf]Connection: Keep-Alive[crlf]Connection: Upgrade[crlf]Upgrade: websocket[crlf][crlf]${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    log_success "SSH account created for user '$username'"
+}
+
+# Create UDP Custom account
+create_udp_account() {
+    local username="$1"
+    local password="$2"
+    local expiry_date="$3"
+    local uuid=$(generate_uuid)
+    
+    # Get domain from config
+    local domain="your-domain.com"
+    if [[ -f "$DATA_DIR/domain.conf" ]]; then
+        domain=$(grep "^DOMAIN=" "$DATA_DIR/domain.conf" | cut -d'=' -f2)
+        [[ -z "$domain" ]] && domain="your-domain.com"
+    fi
+    
+    # Get server IP
+    local server_ip=$(ip route get 8.8.8.8 2>/dev/null | awk 'NR==1{print $7}' || echo "0.0.0.0")
+    
+    # Create system user
+    useradd -m -s /bin/bash "$username" 2>/dev/null || true
+    echo "$username:$password" | chpasswd
+    
+    # Store user data
+    echo "$username:$expiry_date:active:udp:$uuid" >> "$USERS_DB"
+    
+    # Display UDP account details
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}${WHITE}            UDP CUSTOM ACCOUNT${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}Username : ${YELLOW}$username${NC}"
+    echo -e "${WHITE}Password : ${YELLOW}$password${NC}"
+    echo -e "${WHITE}Expired On : ${YELLOW}$expiry_date${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}IP Address : ${YELLOW}$server_ip${NC}"
+    echo -e "${WHITE}Host : ${YELLOW}$domain${NC}"
+    echo -e "${WHITE}Port: ${YELLOW}1-65535${NC}"
+    
+    log_success "UDP Custom account created for user '$username'"
+}
+
+# Create Slow DNS account
+create_slowdns_account() {
+    local username="$1"
+    local password="$2"
+    local expiry_date="$3"
+    local uuid=$(generate_uuid)
+    
+    # Get domain from config
+    local domain="your-domain.com"
+    if [[ -f "$DATA_DIR/domain.conf" ]]; then
+        domain=$(grep "^DOMAIN=" "$DATA_DIR/domain.conf" | cut -d'=' -f2)
+        [[ -z "$domain" ]] && domain="your-domain.com"
+    fi
+    
+    # Get server IP
+    local server_ip=$(ip route get 8.8.8.8 2>/dev/null | awk 'NR==1{print $7}' || echo "0.0.0.0")
+    
+    # Generate public key (mock for display)
+    local public_key=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+    local nameserver="ns.$domain"
+    
+    # Create system user
+    useradd -m -s /bin/bash "$username" 2>/dev/null || true
+    echo "$username:$password" | chpasswd
+    
+    # Store user data
+    echo "$username:$expiry_date:active:slowdns:$uuid" >> "$USERS_DB"
+    
+    # Display Slow DNS account details
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BOLD}${WHITE}            Slow Dns Account${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}Username : ${YELLOW}$username${NC}"
+    echo -e "${WHITE}Password : ${YELLOW}$password${NC}"
+    echo -e "${WHITE}nameserver: ${YELLOW}$nameserver${NC}"
+    echo -e "${WHITE}public key: ${YELLOW}$public_key${NC}"
+    echo -e "${WHITE}port       : ${YELLOW}53${NC}"
+    echo -e "${WHITE}Expired On : ${YELLOW}$expiry_date${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${WHITE}IP Address : ${YELLOW}$server_ip${NC}"
+    echo -e "${WHITE}Host : ${YELLOW}$domain${NC}"
+    
+    log_success "Slow DNS account created for user '$username'"
+}
+
+# Create Xray account (Trojan, VMESS, VLESS)
+create_xray_account() {
+    local username="$1"
+    local password="$2"  
+    local expiry_date="$3"
+    local protocol="$4"
+    local uuid=$(generate_uuid)
+    
+    # Get domain from config
+    local domain="your-domain.com"
+    if [[ -f "$DATA_DIR/domain.conf" ]]; then
+        domain=$(grep "^DOMAIN=" "$DATA_DIR/domain.conf" | cut -d'=' -f2)
+        [[ -z "$domain" ]] && domain="your-domain.com"
+    fi
+    
+    # Create system user
+    useradd -m -s /bin/bash "$username" 2>/dev/null || true
+    echo "$username:$password" | chpasswd
+    
+    # Store user data
+    echo "$username:$expiry_date:active:$protocol:$uuid" >> "$USERS_DB"
+    
+    case $protocol in
+        "trojan")
+            # Display Trojan account details
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BOLD}${WHITE}           TROJAN ACCOUNT${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Remarks : ${YELLOW}$username${NC}"
+            echo -e "${WHITE}Host/IP : ${YELLOW}$domain${NC}"
+            echo -e "${WHITE}port : ${YELLOW}443${NC}"
+            echo -e "${WHITE}Key : ${YELLOW}$uuid${NC}"
+            echo -e "${WHITE}Network : ${YELLOW}ws/grpc${NC}"
+            echo -e "${WHITE}Path : ${YELLOW}/trojan-ws${NC}"
+            echo -e "${WHITE}ServiceName : ${YELLOW}trojan-grpc${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link WS : ${CYAN}trojan://$uuid@$domain:443?path=%2Ftrojan-ws&security=tls&host=$domain&type=ws&sni=$domain#TROJAN_WS_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link GO : ${CYAN}trojan-go://$uuid@$domain:443?path=%2Ftrojan-ws&security=tls&host=$domain&type=ws&sni=$domain#TROJANGO_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link GRPC : ${CYAN}trojan://$uuid@$domain:443?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&sni=$domain#TROJAN_GRPC_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link Trojan Config : ${CYAN}http://$domain:81/trojan-$username.txt${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Expired On : ${YELLOW}$expiry_date${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            ;;
+        "vmess")
+            # Display VMESS account details
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BOLD}${WHITE}           VMESS ACCOUNT${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Remarks : ${YELLOW}$username${NC}"
+            echo -e "${WHITE}Host/IP : ${YELLOW}$domain${NC}"
+            echo -e "${WHITE}port : ${YELLOW}443${NC}"
+            echo -e "${WHITE}ID : ${YELLOW}$uuid${NC}"
+            echo -e "${WHITE}alterId : ${YELLOW}0${NC}"
+            echo -e "${WHITE}Security : ${YELLOW}auto${NC}"
+            echo -e "${WHITE}Network : ${YELLOW}ws/grpc${NC}"
+            echo -e "${WHITE}Path : ${YELLOW}/vmess-ws${NC}"
+            echo -e "${WHITE}ServiceName : ${YELLOW}vmess-grpc${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link WS : ${CYAN}vmess://$uuid@$domain:443?path=%2Fvmess-ws&security=tls&host=$domain&type=ws&sni=$domain#VMESS_WS_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link GRPC : ${CYAN}vmess://$uuid@$domain:443?mode=gun&security=tls&type=grpc&serviceName=vmess-grpc&sni=$domain#VMESS_GRPC_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link VMESS Config : ${CYAN}http://$domain:81/vmess-$username.txt${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Expired On : ${YELLOW}$expiry_date${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            ;;
+        "vless")
+            # Display VLESS account details
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${BOLD}${WHITE}           VLESS ACCOUNT${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Remarks : ${YELLOW}$username${NC}"
+            echo -e "${WHITE}Host/IP : ${YELLOW}$domain${NC}"
+            echo -e "${WHITE}port : ${YELLOW}443${NC}"
+            echo -e "${WHITE}ID : ${YELLOW}$uuid${NC}"
+            echo -e "${WHITE}Encryption : ${YELLOW}none${NC}"
+            echo -e "${WHITE}Network : ${YELLOW}ws/grpc${NC}"
+            echo -e "${WHITE}Path : ${YELLOW}/vless-ws${NC}"
+            echo -e "${WHITE}ServiceName : ${YELLOW}vless-grpc${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link WS : ${CYAN}vless://$uuid@$domain:443?path=%2Fvless-ws&security=tls&host=$domain&type=ws&sni=$domain#VLESS_WS_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link GRPC : ${CYAN}vless://$uuid@$domain:443?mode=gun&security=tls&type=grpc&serviceName=vless-grpc&sni=$domain#VLESS_GRPC_$username${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Link VLESS Config : ${CYAN}http://$domain:81/vless-$username.txt${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${WHITE}Expired On : ${YELLOW}$expiry_date${NC}"
+            echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            ;;
+    esac
+    
+    log_success "$protocol account created for user '$username'"
+}
+
 # Check for expired users
 check_expired_users() {
     while IFS=: read -r username expiry status protocols uuid; do
