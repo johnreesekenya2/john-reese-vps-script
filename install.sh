@@ -75,9 +75,10 @@ install_vps_script() {
 
     # Create installation directory
     mkdir -p "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/bin"
-mkdir -p "$INSTALL_DIR/lib"
-mkdir -p "$INSTALL_DIR/modules"
+    rm -rf "$INSTALL_DIR/bin"
+    rm -rf "$INSTALL_DIR/lib"
+    rm -rf "$INSTALL_DIR/modules"
+
 
     cd "$INSTALL_DIR"
 
