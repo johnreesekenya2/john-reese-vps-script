@@ -75,6 +75,10 @@ install_vps_script() {
 
     # Create installation directory
     mkdir -p "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR/bin"
+mkdir -p "$INSTALL_DIR/lib"
+mkdir -p "$INSTALL_DIR/modules"
+
     cd "$INSTALL_DIR"
 
     # Download repository as ZIP using GitHub API
