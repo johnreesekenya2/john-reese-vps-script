@@ -34,7 +34,7 @@ show_header() {
     echo -e "${BOLD}${CYAN}"
     echo "╔════════════════════════════════════════╗"
     echo "║       🚀 JOHN REESE VPS INSTALLER       ║"
-    echo "║         GitHub API Installation         ║"
+    echo "║         IN DUST WE TRUST        ║"
     echo "╚════════════════════════════════════════╝"
     echo -e "${NC}"
     echo -e "${WHITE}Creator: John Reese${NC}"
