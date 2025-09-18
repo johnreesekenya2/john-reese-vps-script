@@ -29,9 +29,29 @@ A comprehensive Linux VPS management bash script with beautiful colorized CLI me
 
 ### 🚀 Quick Start
 
+**Method 1: One-line installation (Recommended)**
 ```bash
-# Download and make executable
-wget -O john-reese-vps https://raw.githubusercontent.com/johnreesekenya2/john-reese-vps-script/main/bin/john-reese-vps
+curl -fsSL https://raw.githubusercontent.com/johnreesekenya2/john-reese-vps-script/main/install.sh | sudo bash
+```
+
+**Method 2: Manual installation**
+```bash
+# Clone repository using GitHub API
+curl -fsSL https://api.github.com/repos/johnreesekenya2/john-reese-vps-script/zipball/main -o john-reese-vps.zip
+unzip john-reese-vps.zip
+cd johnreesekenya2-john-reese-vps-script-*
+
+# Install the system
+sudo ./bin/john-reese-vps install
+
+# Access the menu
+.menu
+```
+
+**Method 3: Direct download (Legacy)**
+```bash
+# Download main script only
+curl -fsSL https://raw.githubusercontent.com/johnreesekenya2/john-reese-vps-script/main/bin/john-reese-vps -o john-reese-vps
 chmod +x john-reese-vps
 
 # Install the system
