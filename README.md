@@ -1,4 +1,4 @@
-# 👑 JOHN REESE VPS SCRIPT
+# 👑 VPS BY FSOCIETY
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bash](https://img.shields.io/badge/Language-Bash-green.svg)](https://www.gnu.org/software/bash/)
@@ -22,34 +22,41 @@ A comprehensive Linux VPS management bash script with beautiful colorized CLI me
 
 ### 🖥️ Compatibility
 
-- ✅ Ubuntu 20.04, 22.04
-- ✅ Debian 11+
+- ✅ Ubuntu 20.04, 21.04, 22.04 LTS
+- ✅ Debian 11+ (Bullseye and newer)
 - ✅ Termux on Android
 - ✅ Any Linux distribution with bash support
+- 🔧 Automatic OS detection and package management
 
 ### 🚀 Quick Start
 
-**Method 1: One-line installation (Recommended)**
-```bash
+**Method 1: One-line installation (Recommended for Ubuntu 20/21/22 and Debian 11+)**
+``bbash
+# For Ubuntu 20.04/21.04/22.04 and Debian 11+
+wget -qO- https://raw.githubusercontent.com/johnreesekenya2/john-reese-vps-script/main/install.sh | sudo bash
+```
+
+**Method 2: Alternative installation using curl**
+``bbash
+# For all supported systems
 curl -fsSL https://raw.githubusercontent.com/johnreesekenya2/john-reese-vps-script/main/install.sh | sudo bash
 ```
 
-**Method 2: Manual installation**
-```bash
-# Clone repository using GitHub API
-curl -fsSL https://api.github.com/repos/johnreesekenya2/john-reese-vps-script/zipball/main -o john-reese-vps.zip
-unzip john-reese-vps.zip
-cd johnreesekenya2-john-reese-vps-script-*
+**Method 3: Git clone installation**
+``bbash
+# Clone the repository
+git clone https://github.com/johnreesekenya2/john-reese-vps-script.git
+cd john-reese-vps-script
 
 # Install the system
-sudo ./bin/john-reese-vps install
+sudo ./install.sh
 
-# Access the menu
-.menu
+# Access the menu after installation
+menu
 ```
 
 **Method 3: Direct download (Legacy)**
-```bash
+``bbash
 # Download main script only
 curl -fsSL https://raw.githubusercontent.com/johnreesekenya2/john-reese-vps-script/main/bin/john-reese-vps -o john-reese-vps
 chmod +x john-reese-vps
@@ -117,10 +124,12 @@ john-reese-vps-script/
 
 ### 📞 Support & Contact
 
-- 👑 **Creator**: John Reese
+- 👑 **Creator**: John Reese (FSOCIETY)
 - 📱 **WhatsApp**: [wa.me/254745282166](https://wa.me/254745282166)
 - 📧 **Email**: fsocietycipherrevolt@gmail.com
+- 🔗 **Organization**: FSOCIETY
 - 💬 **Motto**: "IN DUST WE TRUST"
+- 📝 **Quote**: "IN THE END WE ARE ALL ALONE AND NO ONE IS COMING TO SAVE YOU"
 
 ### 📝 License
 
@@ -131,5 +140,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 If you find this script useful, please give it a star! ⭐
 
 ---
+
+**"IN DUST WE TRUST"** - VPS BY FSOCIETY
 
 **"IN THE END WE ARE ALL ALONE AND NO ONE IS COMING TO SAVE YOU"** - John Reese
