@@ -92,26 +92,158 @@ check_installation() {
         echo -e "${WHITE}Run: $0 install${NC}"
         exit 1
     fi
+    
+    # Verify critical files exist
+    local critical_files=(
+        "$DATA_DIR/configs"
+        "/etc/ssl/certs/john-reese.crt"
+        "/usr/local/bin/menu"
+    )
+    
+    local missing_files=()
+    for file in "${critical_files[@]}"; do
+        if [[ ! -e "$file" ]]; then
+            missing_files+=("$file")
+        fi
+    done
+    
+    if [[ ${#missing_files[@]} -gt 0 ]]; then
+        echo -e "${YELLOW}⚠️ Installation appears incomplete. Missing files:${NC}"
+        printf '  %s\n' "${missing_files[@]}"
+        echo -e "${WHITE}Consider reinstalling: $0 install${NC}"
+    fi
+}
+
+# Check system requirements
+check_system_requirements() {
+    echo -e "${BLUE}🔍 Checking system requirements...${NC}"
+    
+    # Check available disk space (need at least 500MB)
+    local available_space=$(df / | awk 'NR==2 {print $4}')
+    local required_space=512000  # 500MB in KB
+    
+    if [[ $available_space -lt $required_space ]]; then
+        echo -e "${RED}❌ Insufficient disk space. Need at least 500MB free.${NC}"
+        echo -e "${WHITE}Available: $(($available_space / 1024))MB, Required: 500MB${NC}"
+        exit 1
+    fi
+    
+    # Check if running as root
+    if [[ $EUID -eq 0 ]]; then
+        echo -e "${GREEN}✅ Running as root${NC}"
+    else
+        echo -e "${RED}❌ This script must be run as root${NC}"
+        exit 1
+    fi
+    
+    # Check internet connectivity
+    if ! ping -c 1 google.com &>/dev/null && ! ping -c 1 8.8.8.8 &>/dev/null; then
+        echo -e "${YELLOW}⚠️ No internet connectivity detected${NC}"
+        echo -e "${WHITE}Some features may not work properly${NC}"
+    else
+        echo -e "${GREEN}✅ Internet connectivity OK${NC}"
+    fi
+    
+    # Check if ports are available
+    local ports_to_check=(80 443 2222 8443)
+    local busy_ports=()
+    
+    for port in "${ports_to_check[@]}"; do
+        if ss -tlnp | grep -q ":$port "; then
+            busy_ports+=("$port")
+        fi
+    done
+    
+    if [[ ${#busy_ports[@]} -gt 0 ]]; then
+        echo -e "${YELLOW}⚠️ The following ports are already in use: ${busy_ports[*]}${NC}"
+        echo -e "${WHITE}Installation may fail or require manual configuration${NC}"
+        echo -ne "${WHITE}Continue anyway? (y/N): ${NC}"
+        read -r continue_install
+        if [[ "$continue_install" != "y" && "$continue_install" != "Y" ]]; then
+            echo -e "${BLUE}Installation cancelled${NC}"
+            exit 0
+        fi
+    fi
+    
+    echo -e "${GREEN}✅ System requirements check completed${NC}"
+}
+
+# Validate installation
+validate_installation() {
+    echo -e "${BLUE}🔍 Validating installation...${NC}"
+    
+    local validation_errors=()
+    
+    # Check if nginx is running
+    if ! systemctl is-active --quiet nginx; then
+        validation_errors+=("Nginx service is not running")
+    fi
+    
+    # Check if SSL certificates exist
+    if [[ ! -f "/etc/ssl/certs/john-reese.crt" ]]; then
+        validation_errors+=("SSL certificate not found")
+    fi
+    
+    # Check if menu command is available
+    if [[ ! -x "/usr/local/bin/menu" ]]; then
+        validation_errors+=("Menu command not available")
+    fi
+    
+    # Check if data directory is properly created
+    if [[ ! -d "$DATA_DIR/configs" ]]; then
+        validation_errors+=("Configuration directory missing")
+    fi
+    
+    if [[ ${#validation_errors[@]} -eq 0 ]]; then
+        echo -e "${GREEN}✅ Installation validation successful${NC}"
+        return 0
+    else
+        echo -e "${YELLOW}⚠️ Installation validation found issues:${NC}"
+        printf '  %s\n' "${validation_errors[@]}"
+        echo -e "${WHITE}The system may still work, but some features might be limited${NC}"
+        return 1
+    fi
 }
 
 # Install system
 install_system() {
     echo -e "${BOLD}${CYAN}Installing JOHN REESE VPS Management System...${NC}"
     
+    # Pre-installation checks
     check_root
+    check_system_requirements
     detect_system
-    init_directories
-    install_packages
-    setup_services
-    init_protocol_configs
-    create_menu_commands
+    
+    # Installation steps with error handling
+    echo -e "${BLUE}📁 Initializing directories...${NC}"
+    init_directories || { echo -e "${RED}❌ Failed to initialize directories${NC}"; exit 1; }
+    
+    echo -e "${BLUE}📦 Installing packages...${NC}"
+    install_packages || { echo -e "${RED}❌ Failed to install packages${NC}"; exit 1; }
+    
+    echo -e "${BLUE}🔧 Setting up services...${NC}"
+    setup_services || { echo -e "${RED}❌ Failed to setup services${NC}"; exit 1; }
+    
+    echo -e "${BLUE}🚀 Initializing protocols...${NC}"
+    init_protocol_configs || { echo -e "${RED}❌ Failed to initialize protocols${NC}"; exit 1; }
+    
+    echo -e "${BLUE}📋 Creating menu commands...${NC}"
+    create_menu_commands || { echo -e "${RED}❌ Failed to create menu commands${NC}"; exit 1; }
+    
+    # Post-installation validation
+    validate_installation
     
     echo -e "${GREEN}✅ Installation completed successfully!${NC}"
     echo -e "${WHITE}Use 'menu' or '.menu' to access the management interface.${NC}"
+    echo -e "${WHITE}Installation log: $LOG_FILE${NC}"
     show_creator_credits
     
-    # Start menu immediately
-    show_main_menu
+    # Start menu immediately if interactive
+    if [[ -t 0 ]]; then
+        echo -e "${BLUE}🎯 Starting management interface...${NC}"
+        sleep 2
+        show_main_menu
+    fi
 }
 
 # Uninstall system
