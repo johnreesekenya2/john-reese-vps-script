@@ -50,12 +50,12 @@ install_packages() {
     log_success "All packages installed"
 }
 
-# Install Xray-core
+# Install Xray-core using GitHub API
 install_xray() {
-    echo -e "${BLUE}🚀 Installing Xray-core...${NC}"
+    echo -e "${BLUE}🚀 Installing Xray-core via GitHub API...${NC}"
     
     if [[ "$DETECTED_OS" == "termux" ]]; then
-        # Termux installation
+        # Termux installation using GitHub API
         local arch=$(uname -m)
         case "$arch" in
             "aarch64") arch="arm64" ;;
@@ -63,30 +63,61 @@ install_xray() {
             *) arch="64" ;;
         esac
         
-        wget -O /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/latest/download/Xray-android-${arch}.zip"
-        unzip /tmp/xray.zip -d /data/data/com.termux/files/usr/bin/
-        chmod +x /data/data/com.termux/files/usr/bin/xray
-        rm /tmp/xray.zip
+        # Get latest release info from GitHub API
+        local latest_release_url="https://api.github.com/repos/XTLS/Xray-core/releases/latest"
+        local download_url=$(curl -s "$latest_release_url" | jq -r ".assets[] | select(.name | contains(\"android-$arch\")) | .browser_download_url")
+        
+        if [[ -n "$download_url" && "$download_url" != "null" ]]; then
+            echo -e "${BLUE}📥 Downloading Xray for $arch architecture...${NC}"
+            curl -fsSL "$download_url" -o /tmp/xray.zip
+            unzip -q /tmp/xray.zip -d /data/data/com.termux/files/usr/bin/
+            chmod +x /data/data/com.termux/files/usr/bin/xray
+            rm /tmp/xray.zip
+            log_success "Xray-core installed for Termux"
+        else
+            log_error "Failed to get Xray download URL for architecture: $arch"
+            return 1
+        fi
     else
-        # Ubuntu/Debian installation
-        bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+        # Ubuntu/Debian installation using official installer
+        echo -e "${BLUE}📥 Installing Xray using official installer...${NC}"
+        if curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh | bash -s -- install; then
+            log_success "Xray-core installed via official installer"
+        else
+            log_error "Failed to install Xray-core"
+            return 1
+        fi
     fi
     
-    log_success "Xray-core installed"
+    # Verify installation
+    if command -v xray >/dev/null 2>&1; then
+        local version=$(xray version 2>/dev/null | head -n1 || echo "Unknown")
+        log_success "Xray-core installed successfully: $version"
+    else
+        log_warn "Xray-core installation completed but binary not found in PATH"
+    fi
 }
 
 # Setup all services
 setup_services() {
     echo -e "${BLUE}🔧 Setting up services...${NC}"
     
-    # Generate SSL certificate
+    # Source WebSocket service management
+    source "$SCRIPT_DIR/lib/websocket-service.sh"
+    
+    # First configure basic services without SSL
+    configure_dropbear
+    configure_xray_base
+    
+    # Setup WebSocket bridge before nginx
+    setup_websocket_bridge
+    
+    # Generate SSL certificate before nginx configuration
     generate_ssl_certificate
     
-    # Configure services
+    # Configure nginx after SSL certificates and WebSocket bridge exist
     configure_nginx
-    configure_dropbear
     configure_stunnel
-    configure_xray_base
     
     # Enable and start services
     enable_services
@@ -120,46 +151,87 @@ generate_ssl_certificate() {
 # Configure NGINX
 configure_nginx() {
     local config_file="/etc/nginx/sites-available/john-reese-default"
+    local cert_path="/etc/ssl/certs/john-reese.crt"
+    local key_path="/etc/ssl/private/john-reese.key"
+    
+    # Ensure SSL certificates exist before configuring nginx
+    if [[ ! -f "$cert_path" ]] || [[ ! -f "$key_path" ]]; then
+        log_error "SSL certificates not found, generating them first"
+        generate_ssl_certificate
+    fi
+    
+    # Verify certificates exist and are valid
+    if ! openssl x509 -in "$cert_path" -noout -checkend 0 &>/dev/null; then
+        log_warn "SSL certificate appears invalid, regenerating"
+        rm -f "$cert_path" "$key_path"
+        generate_ssl_certificate
+    fi
     
     cat > "$config_file" << 'EOF'
+# JOHN REESE VPS - Main NGINX Configuration
 server {
     listen 80 default_server;
+    listen [::]:80 default_server;
     server_name _;
     
-    # WebSocket upgrade header
+    # Allow ACME challenges for Let's Encrypt
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
+    
+    # WebSocket upgrade detection
     location / {
         if ($http_upgrade = websocket) {
             return 301 https://$host$request_uri;
         }
         
-        # Default response with custom header
+        # Default response for HTTP requests
         add_header X-Protocol "HTTP 101 Switching Protocols - KENYAN JOHN REESE PRIME";
-        return 200 "JOHN REESE VPS - WebSocket Ready\n";
+        return 200 "JOHN REESE VPS - WebSocket Ready\nUpgrade to HTTPS for secure connections.\n";
+        add_header Content-Type text/plain;
     }
     
-    # Health check
+    # Health check endpoint
     location /health {
         access_log off;
-        return 200 "OK";
+        return 200 "JOHN REESE VPS - HTTP OK";
         add_header Content-Type text/plain;
     }
 }
 
 server {
     listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
     server_name _;
     
+    # SSL Configuration
     ssl_certificate /etc/ssl/certs/john-reese.crt;
     ssl_certificate_key /etc/ssl/private/john-reese.key;
     
-    # SSL optimizations
+    # SSL Security Settings
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
     
+    # Security Headers
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Main location for WebSocket connections
     location / {
-        # WebSocket proxy to SSH (Dropbear on 2222)
-        proxy_pass http://127.0.0.1:2222;
+        # Check if this is a WebSocket upgrade request
+        if ($http_upgrade != "websocket") {
+            return 426 "Upgrade Required - WebSocket connections only";
+        }
+        
+        # Proxy to WebSocket bridge service (port 3000)
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -167,26 +239,65 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
         
-        # Custom handshake response
+        # Connection timeouts for WebSocket
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        
+        # WebSocket specific settings
+        proxy_buffering off;
+        proxy_cache off;
+        
+        # Custom headers
         add_header X-WebSocket-Protocol "HTTP 101 Switching Protocols - KENYAN JOHN REESE PRIME";
+        add_header X-Powered-By "JOHN REESE VPS";
+        add_header X-Bridge-Type "WebSocket-to-SSH";
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "JOHN REESE VPS - SSL OK";
+        add_header Content-Type text/plain;
+    }
+    
+    # Status endpoint for monitoring
+    location /status {
+        access_log off;
+        return 200 "JOHN REESE VPS - Status OK\nSSL: Active\nWebSocket: Ready\n";
+        add_header Content-Type text/plain;
     }
 }
 EOF
     
-    # Enable the site
-    ln -sf "$config_file" /etc/nginx/sites-enabled/john-reese-default
+    # Create webroot directory for ACME challenges
+    mkdir -p /var/www/html
+    
+    # Remove default nginx site
     rm -f /etc/nginx/sites-enabled/default
     
-    # Test configuration and reload
-    if nginx -t; then
-        systemctl reload nginx 2>/dev/null || true
-        log_success "NGINX configured and reloaded"
+    # Enable our site
+    ln -sf "$config_file" /etc/nginx/sites-enabled/john-reese-default
+    
+    # Test nginx configuration
+    if nginx -t 2>/dev/null; then
+        log_success "NGINX configuration test passed"
+        
+        # Reload or start nginx
+        if systemctl is-active --quiet nginx 2>/dev/null; then
+            systemctl reload nginx 2>/dev/null || {
+                log_warn "NGINX reload failed, restarting"
+                systemctl restart nginx 2>/dev/null
+            }
+        else
+            systemctl start nginx 2>/dev/null
+        fi
+        
+        log_success "NGINX configured and running"
     else
         log_error "NGINX configuration test failed"
+        nginx -t
         return 1
     fi
 }
@@ -309,7 +420,13 @@ enable_services() {
 remove_services() {
     echo -e "${RED}🛑 Stopping and removing services...${NC}"
     
-    local services=("nginx" "dropbear" "stunnel4")
+    # Source WebSocket service management
+    if [[ -f "$SCRIPT_DIR/lib/websocket-service.sh" ]]; then
+        source "$SCRIPT_DIR/lib/websocket-service.sh"
+        remove_websocket_bridge
+    fi
+    
+    local services=("nginx" "dropbear" "stunnel4" "websocket-bridge")
     
     for service in "${services[@]}"; do
         if service_exists "$service"; then
