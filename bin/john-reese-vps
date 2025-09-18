@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# JOHN REESE VPS SCRIPT - Main Executable
+# Creator: John Reese
+# Contact: wa.me/254745282166
+# Email: fsocietycipherrevolt@gmail.com
+
+set -euo pipefail
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Global configuration - must be set before sourcing libraries
+export JOHN_REESE_VERSION="1.0"
+export DATA_DIR="/etc/john-reese-vps"
+export LOG_FILE="/var/log/john-reese-vps.log"
+export SCRIPT_DIR
+
+# Source core libraries
+source "$SCRIPT_DIR/lib/colors.sh"
+source "$SCRIPT_DIR/lib/logging.sh"
+source "$SCRIPT_DIR/lib/os.sh"
+source "$SCRIPT_DIR/lib/menu.sh"
+source "$SCRIPT_DIR/lib/users.sh"
+source "$SCRIPT_DIR/lib/services.sh"
+source "$SCRIPT_DIR/lib/domains.sh"
+source "$SCRIPT_DIR/lib/bandwidth.sh"
+source "$SCRIPT_DIR/lib/ports.sh"
+source "$SCRIPT_DIR/modules/protocols/protocols.sh"
+
+# Main entry point
+main() {
+    local command="${1:-install}"
+    
+    case "$command" in
+        "install")
+            install_system
+            ;;
+        "menu"|".menu")
+            check_installation
+            check_expired_users
+            show_main_menu
+            ;;
+        "uninstall")
+            uninstall_system
+            ;;
+        "--version"|"-v")
+            echo "JOHN REESE VPS Script v$JOHN_REESE_VERSION"
+            show_creator_credits
+            ;;
+        "--help"|"-h")
+            show_help
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Show help
+show_help() {
+    echo -e "${BOLD}${CYAN}JOHN REESE VPS SCRIPT${NC}"
+    echo -e "${WHITE}Usage: $0 [command]${NC}"
+    echo
+    echo -e "${WHITE}Commands:${NC}"
+    echo -e "  ${GREEN}install${NC}     Install and configure the VPS management system"
+    echo -e "  ${GREEN}menu${NC}        Show the main management menu"
+    echo -e "  ${GREEN}uninstall${NC}   Remove the VPS management system"
+    echo -e "  ${GREEN}--version${NC}   Show version information"
+    echo -e "  ${GREEN}--help${NC}      Show this help message"
+    echo
+    show_creator_credits
+}
+
+# Check if system is installed
+check_installation() {
+    if [[ ! -d "$DATA_DIR" ]]; then
+        echo -e "${RED}❌ JOHN REESE VPS System not installed!${NC}"
+        echo -e "${WHITE}Run: $0 install${NC}"
+        exit 1
+    fi
+}
+
+# Install system
+install_system() {
+    echo -e "${BOLD}${CYAN}Installing JOHN REESE VPS Management System...${NC}"
+    
+    check_root
+    detect_system
+    init_directories
+    install_packages
+    setup_services
+    init_protocol_configs
+    create_menu_commands
+    
+    echo -e "${GREEN}✅ Installation completed successfully!${NC}"
+    echo -e "${WHITE}Use 'menu' or '.menu' to access the management interface.${NC}"
+    show_creator_credits
+    
+    # Start menu immediately
+    show_main_menu
+}
+
+# Uninstall system
+uninstall_system() {
+    echo -e "${RED}🧹 Uninstalling JOHN REESE VPS System${NC}"
+    echo -e "${YELLOW}⚠️ WARNING: This will remove all data and configurations!${NC}"
+    echo -ne "${WHITE}Are you sure? (yes/no): ${NC}"
+    read confirm
+    
+    if [[ "$confirm" != "yes" ]]; then
+        echo -e "${BLUE}🔵 Operation cancelled.${NC}"
+        exit 0
+    fi
+    
+    remove_services
+    cleanup_files
+    
+    echo -e "${GREEN}✅ System uninstalled successfully!${NC}"
+    show_creator_credits
+}
+
+# Create menu commands
+create_menu_commands() {
+    cat > /usr/local/bin/menu << EOF
+#!/bin/bash
+exec bash "$SCRIPT_DIR/bin/john-reese-vps" menu
+EOF
+    chmod +x /usr/local/bin/menu
+    
+    # Create .menu command
+    ln -sf /usr/local/bin/menu /usr/local/bin/.menu
+}
+
+# Run main function with all arguments
+main "$@"
